@@ -58,42 +58,33 @@ class ExceptionHandler implements UncaughtExceptionHandler {
         final long time = System.currentTimeMillis();
         final String filename = filesPath + "/" + time + ".stacktrace";
 
-        Runnable writer = new Runnable() {
-            @Override
-            public void run() {
-                File f = new File(filesPath);
-                if (!f.exists()) {
-                    f.mkdirs();
-                }
-                StringBuilder context = new StringBuilder()
-                        .append("version:").append(BugjarMonitor.BM_VERSION).append("\n")
-                        .append("versionName:").append(versionName).append("\n")
-                        .append("versionCode:").append(versionCode).append("\n")
-                        .append("time:").append(time).append("\n")
-                        .append("\r\n");
+        File f = new File(filesPath);
+        if (!f.exists()) {
+            f.mkdirs();
+        }
+        StringBuilder context = new StringBuilder().append("version:")
+                .append(BugjarMonitor.BM_VERSION).append("\n")
+                .append("versionName:").append(versionName).append("\n")
+                .append("versionCode:").append(versionCode).append("\n")
+                .append("time:").append(time).append("\n").append("\r\n");
 
-                Log.d(BugjarMonitor.TAG, "writing uncaught stack trace to " + filename);
-                try {
-                    new File(filename).createNewFile();
-                    FileWriter fw = new FileWriter(filename);
-                    BufferedWriter buffered = new BufferedWriter(fw);
-                    // write the stack trace
-                    e.printStackTrace(new PrintWriter(fw));
-                    // write the context
-                    buffered.write(context.toString());
-                    buffered.close();
-                } catch (IOException ioe) {
-                    Log.e(BugjarMonitor.TAG, "caught "
-                            + ioe.getClass().getSimpleName() + "writing to " + filename
-                            + ": " + ioe.getMessage(), ioe);
-                } finally {
-                    // safe to rethrow this from our thread?
-                    defaultUncaughtExceptionHandler.uncaughtException(thread, e);
-                }
-            }
-        };
-
-        new Thread(writer).start();
+        Log.d(BugjarMonitor.TAG, "writing uncaught stack trace to " + filename);
+        try {
+            new File(filename).createNewFile();
+            FileWriter fw = new FileWriter(filename);
+            BufferedWriter buffered = new BufferedWriter(fw);
+            // write the stack trace
+            e.printStackTrace(new PrintWriter(fw));
+            // write the context
+            buffered.write(context.toString());
+            buffered.close();
+        } catch (IOException ioe) {
+            Log.e(BugjarMonitor.TAG, "caught " + ioe.getClass().getSimpleName()
+                    + "writing to " + filename + ": " + ioe.getMessage(), ioe);
+        } finally {
+            // safe to rethrow this from our thread?
+            defaultUncaughtExceptionHandler.uncaughtException(thread, e);
+        }
     }
 
     /**
