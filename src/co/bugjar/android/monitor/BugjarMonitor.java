@@ -26,6 +26,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.Log;
 
@@ -39,10 +40,11 @@ import android.util.Log;
  * @see http://www.bugjar.co
  */
 public class BugjarMonitor {
-    static final String BM_VERSION = "20120122";
+    static final String BM_VERSION = "2012-01-22";
     static final String TAG = BugjarMonitor.class.getSimpleName();
     
     private static final String BJ_SERVER = "http://bugjar.git/server.php";
+    private static final String STACK_TRACES_PATH = "/Bugjar/traces";
     
     private final String filesDir;
     private final String apiKey;
@@ -55,10 +57,10 @@ public class BugjarMonitor {
      * @param versioName the application version name
      * @param versionCode the application version code
      */
-    private BugjarMonitor(String packageName, String apiKey,
-            String versionName, int versionCode) {
+    private BugjarMonitor(String filesDir, String apiKey, String versionName,
+            int versionCode) {
         
-        this.filesDir = "/Android/data/" + packageName;
+        this.filesDir = filesDir;
         this.apiKey = apiKey;
         this.versionName = versionName;
         this.versionCode = String.valueOf(versionCode);
@@ -82,10 +84,16 @@ public class BugjarMonitor {
     public static void initialize(Context context, String apiKey)
     {
         String packageName = context.getPackageName();
+        
+        String filesDir = Environment.getExternalStorageDirectory()
+                + "/Android/data/" + packageName + STACK_TRACES_PATH;
+        
+        Log.d(TAG, "files dir is " + filesDir);
         try {
             PackageInfo info = context.getPackageManager().getPackageInfo(packageName, 0);
-            BugjarMonitor m = new BugjarMonitor(packageName, apiKey,
+            BugjarMonitor m = new BugjarMonitor(filesDir, apiKey,
                     info.versionName, info.versionCode);
+            
             Thread.setDefaultUncaughtExceptionHandler(m.exceptionHandler());
             m.submitStackTraces(context);
         } catch (NameNotFoundException e) {
@@ -118,21 +126,27 @@ public class BugjarMonitor {
                 request.addHeader("widthPixels", widthPixels);
                 request.addHeader("heightPixels", heightPixels);
                 
-                HttpResponse response;
                 try {
                     File d = new File(filesDir);
                     File[] stackTraces = d.listFiles(new ExceptionHandler.StackTraceFilter());
-                    if (stackTraces.length > 0) {
+                    if (stackTraces != null && stackTraces.length > 0) {
                         for (int i = 0; i < stackTraces.length; i++) {
                             File f = stackTraces[i];
+                            
+                            Log.d(TAG, "sending " + f.getAbsolutePath());
                             request.setEntity(new InputStreamEntity(
                                     new FileInputStream(f), f.length()));
-                            response = httpClient.execute(request);
-                            Log.d(TAG, response.getStatusLine().toString());
+                            
+                            HttpResponse response = httpClient.execute(request);
+                            if (response.getStatusLine().getStatusCode() == 200) {
+                                f.delete();
+                            } else {
+                                Log.w(TAG, "Bugjar server returned " + response.getStatusLine().toString());
+                            }
                         }
                     } else {
                         // say hello
-                        response = httpClient.execute(request);
+                        HttpResponse response = httpClient.execute(request);
                         Log.d(TAG, response.getStatusLine().toString());
                     }
                 } catch(IOException e) {

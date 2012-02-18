@@ -33,8 +33,6 @@ import android.util.Log;
  */
 class ExceptionHandler implements UncaughtExceptionHandler {
 
-    private static final String STACK_TRACES_PATH = "/Bugjar/traces";
-
     private final String filesPath;
     private final String versionName;
     private final String versionCode;
@@ -43,7 +41,7 @@ class ExceptionHandler implements UncaughtExceptionHandler {
     ExceptionHandler(String filesPath, String versionName, String versionCode,
             UncaughtExceptionHandler defaultUncaughtExceptionhandler) {
         
-        this.filesPath = filesPath + STACK_TRACES_PATH;
+        this.filesPath = filesPath;
         this.versionName = versionName;
         this.versionCode = versionCode;
         this.defaultUncaughtExceptionHandler = defaultUncaughtExceptionhandler;
@@ -63,21 +61,26 @@ class ExceptionHandler implements UncaughtExceptionHandler {
         Runnable writer = new Runnable() {
             @Override
             public void run() {
-                StringBuilder builder = new StringBuilder("version:")
-                        .append(BugjarMonitor.BM_VERSION).append("\n")
-                        .append("versionName:").append(versionName)
-                        .append("\n").append("versionCode").append(versionCode)
-                        .append("\n").append("time:").append(time).append("\n")
+                File f = new File(filesPath);
+                if (!f.exists()) {
+                    f.mkdirs();
+                }
+                StringBuilder context = new StringBuilder()
+                        .append("version:").append(BugjarMonitor.BM_VERSION).append("\n")
+                        .append("versionName:").append(versionName).append("\n")
+                        .append("versionCode:").append(versionCode).append("\n")
+                        .append("time:").append(time).append("\n")
                         .append("\r\n");
 
                 Log.d(BugjarMonitor.TAG, "writing uncaught stack trace to " + filename);
                 try {
+                    new File(filename).createNewFile();
                     FileWriter fw = new FileWriter(filename);
                     BufferedWriter buffered = new BufferedWriter(fw);
-                    // write the context
-                    buffered.write(builder.toString());
                     // write the stack trace
                     e.printStackTrace(new PrintWriter(fw));
+                    // write the context
+                    buffered.write(context.toString());
                     buffered.close();
                 } catch (IOException ioe) {
                     Log.e(BugjarMonitor.TAG, "caught "
