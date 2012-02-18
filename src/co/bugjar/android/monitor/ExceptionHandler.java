@@ -14,9 +14,7 @@
  */
 package co.bugjar.android.monitor;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -71,13 +69,13 @@ class ExceptionHandler implements UncaughtExceptionHandler {
         Log.d(BugjarMonitor.TAG, "writing uncaught stack trace to " + filename);
         try {
             new File(filename).createNewFile();
-            FileWriter fw = new FileWriter(filename);
-            BufferedWriter buffered = new BufferedWriter(fw);
-            // write the stack trace
-            e.printStackTrace(new PrintWriter(fw));
+            PrintWriter writer = new PrintWriter(filename);
             // write the context
-            buffered.write(context.toString());
-            buffered.close();
+            writer.append(context.toString());
+            // write the stack trace
+            e.printStackTrace(writer);
+            writer.flush();
+            writer.close();
         } catch (IOException ioe) {
             Log.e(BugjarMonitor.TAG, "caught " + ioe.getClass().getSimpleName()
                     + "writing to " + filename + ": " + ioe.getMessage(), ioe);
