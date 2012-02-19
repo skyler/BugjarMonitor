@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.Thread.UncaughtExceptionHandler;
 
+import android.content.Context;
+import android.util.DisplayMetrics;
 import android.util.Log;
 
 
@@ -31,14 +33,19 @@ import android.util.Log;
  */
 class ExceptionHandler implements UncaughtExceptionHandler {
 
+    private final Context context;
+    private final String apiKey;
     private final String filesPath;
     private final String versionName;
     private final String versionCode;
     private final UncaughtExceptionHandler defaultUncaughtExceptionHandler;
 
-    ExceptionHandler(String filesPath, String versionName, String versionCode,
+    ExceptionHandler(String apiKey, String filesPath, String versionName,
+            String versionCode, Context context,
             UncaughtExceptionHandler defaultUncaughtExceptionhandler) {
         
+        this.context = context.getApplicationContext();
+        this.apiKey = apiKey;
         this.filesPath = filesPath;
         this.versionName = versionName;
         this.versionCode = versionCode;
@@ -60,11 +67,18 @@ class ExceptionHandler implements UncaughtExceptionHandler {
         if (!f.exists()) {
             f.mkdirs();
         }
-        StringBuilder context = new StringBuilder().append("version:")
-                .append(BugjarMonitor.BM_VERSION).append("\n")
+        
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        
+        StringBuilder context = new StringBuilder()
+                .append("monitorVersion:").append(BugjarMonitor.BM_VERSION).append("\n")
+                .append("apiKey:").append(apiKey).append("\n")
                 .append("versionName:").append(versionName).append("\n")
                 .append("versionCode:").append(versionCode).append("\n")
-                .append("time:").append(time).append("\n").append("\r\n");
+                .append("widthPixels:").append(metrics.widthPixels).append("\n")
+                .append("heightPixels:").append(metrics.heightPixels).append("\n")
+                .append("time:").append(time).append("\n")
+                .append("\r\n");
 
         Log.d(BugjarMonitor.TAG, "writing uncaught stack trace to " + filename);
         try {

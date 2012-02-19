@@ -14,20 +14,20 @@
  */
 package co.bugjar.android.monitor;
 
+import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.InputStreamEntity;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Environment;
-import android.util.DisplayMetrics;
 import android.util.Log;
 
 
@@ -52,7 +52,7 @@ public class BugjarMonitor {
     private final String versionCode;
     
     /**
-     * @param packageName the application package name
+     * @param filesDir directory to write stack traces
      * @param apiKey the Bugjar account API key
      * @param versioName the application version name
      * @param versionCode the application version code
@@ -68,17 +68,19 @@ public class BugjarMonitor {
     
     /**
      * Get the Bugjar exception handler
+     * 
+     * @param context a Context reference
      */
-    private ExceptionHandler exceptionHandler()
+    private ExceptionHandler exceptionHandler(Context context)
     {
-        return new ExceptionHandler(filesDir, versionName, versionCode,
+        return new ExceptionHandler(apiKey, filesDir, versionName, versionCode, context,
                 Thread.getDefaultUncaughtExceptionHandler());
     }
     
     /**
      * Initialize the monitor to handle uncaught exceptions
      * 
-     * @param packageName the application package name
+     * @param context a Context reference
      * @param apiKey the account API key
      */
     public static void initialize(Context context, String apiKey)
@@ -94,7 +96,7 @@ public class BugjarMonitor {
             BugjarMonitor m = new BugjarMonitor(filesDir, apiKey,
                     info.versionName, info.versionCode);
             
-            Thread.setDefaultUncaughtExceptionHandler(m.exceptionHandler());
+            Thread.setDefaultUncaughtExceptionHandler(m.exceptionHandler(context));
             m.submitStackTraces(context);
         } catch (NameNotFoundException e) {
             Log.e(TAG, "couldn't determine version name or code while initializing: " + e.getMessage());
@@ -108,10 +110,6 @@ public class BugjarMonitor {
     private void submitStackTraces(Context context)
     {
         final DefaultHttpClient httpClient = new DefaultHttpClient();
-        
-        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
-        final String widthPixels = String.valueOf(metrics.widthPixels);
-        final String heightPixels = String.valueOf(metrics.heightPixels);
  
         Runnable submitter = new Runnable() {
 
@@ -119,35 +117,46 @@ public class BugjarMonitor {
             public void run() {
                 HttpPost request = new HttpPost(BJ_SERVER);
                 
-                request.addHeader("version", BM_VERSION);
-                request.addHeader("versionName", versionName);
-                request.addHeader("versionCode", versionCode);
-                request.addHeader("apiKey", apiKey);       
-                request.addHeader("widthPixels", widthPixels);
-                request.addHeader("heightPixels", heightPixels);
-                
                 try {
                     File d = new File(filesDir);
                     File[] stackTraces = d.listFiles(new ExceptionHandler.StackTraceFilter());
                     if (stackTraces != null && stackTraces.length > 0) {
                         for (int i = 0; i < stackTraces.length; i++) {
                             File f = stackTraces[i];
-                            
                             Log.d(TAG, "sending " + f.getAbsolutePath());
-                            request.setEntity(new InputStreamEntity(
-                                    new FileInputStream(f), f.length()));
+                            
+                            StringBuilder builder = new StringBuilder();
+                            
+                            BufferedReader reader = new BufferedReader(new FileReader(f));
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                builder.append(line).append("\n");
+                            }
+                            
+                            request.setEntity(new StringEntity(builder.toString()));
                             
                             HttpResponse response = httpClient.execute(request);
                             if (response.getStatusLine().getStatusCode() == 200) {
                                 f.delete();
                             } else {
-                                Log.w(TAG, "Bugjar server returned " + response.getStatusLine().toString());
+                                Log.w(TAG, "Bugjar server responded " + response.getStatusLine().toString());
                             }
                         }
                     } else {
-                        // say hello
+                        // no stack traces to send, ping home
+                        StringBuilder builder = new StringBuilder()
+                                 .append("monitorVersion:").append(BugjarMonitor.BM_VERSION).append("\n")
+                                 .append("apiKey:").append(apiKey).append("\n")
+                                 .append("versionName:").append(versionName).append("\n")
+                                 .append("versionCode:").append(versionCode).append("\n")
+                                 .append("checkin:true");
+                        
+                        request.setEntity(new StringEntity(builder.toString()));
                         HttpResponse response = httpClient.execute(request);
-                        Log.d(TAG, response.getStatusLine().toString());
+                        
+                        if (response.getStatusLine().getStatusCode() != 200) {
+                            Log.w(TAG, "Bugjar server responded " + response.getStatusLine().toString());
+                        }
                     }
                 } catch(IOException e) {
                     Log.e(TAG, e.getClass().getSimpleName() + " caught submitting stack trace: "
