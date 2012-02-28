@@ -167,4 +167,9 @@ public class BugjarMonitor {
         
         new Thread(submitter).start();
     }
+    
+    static StringBuilder getContextInfo(Context context)
+    {
+        // put together versionName, code, sdk version, etc.
+    }
 }
