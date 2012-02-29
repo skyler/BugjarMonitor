@@ -17,10 +17,9 @@ package co.bugjar.android.monitor;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.List;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.InputStreamEntity;
+import org.apache.http.NameValuePair;
 import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.content.Context;
@@ -40,12 +39,13 @@ import android.util.Log;
  * @see http://www.bugjar.co
  */
 public class BugjarMonitor {
-    static final String BM_VERSION = "2012-01-22";
+    static final String VERSION = "2012-01-22";
     static final String TAG = BugjarMonitor.class.getSimpleName();
     
     private static final String BJ_SERVER = "http://bugjar.git/server.php";
     private static final String STACK_TRACES_PATH = "/Bugjar/traces";
     
+    private final TrackingValues trackingValues = new TrackingValues();
     private final String filesDir;
     private final String apiKey;
     private final String versionName;
@@ -58,12 +58,25 @@ public class BugjarMonitor {
      * @param versionCode the application version code
      */
     private BugjarMonitor(String filesDir, String apiKey, String versionName,
-            int versionCode) {
+            int versionCode, DisplayMetrics displayMetrics) {
         
         this.filesDir = filesDir;
         this.apiKey = apiKey;
         this.versionName = versionName;
         this.versionCode = String.valueOf(versionCode);
+        
+        trackingValues.put("monitorVersion", VERSION);
+        trackingValues.put("apiKey", apiKey);
+        
+        trackingValues.put("versionName", versionName);
+        trackingValues.put("versionCode", String.valueOf(versionCode));
+        trackingValues.put("apiKey", apiKey);
+        
+        trackingValues.put("widthPixels",
+                String.valueOf(displayMetrics.widthPixels));
+        
+        trackingValues.put("heightPixels",
+                String.valueOf(displayMetrics.heightPixels));
     }
     
     /**
@@ -89,10 +102,12 @@ public class BugjarMonitor {
                 + "/Android/data/" + packageName + STACK_TRACES_PATH;
         
         Log.d(TAG, "files dir is " + filesDir);
+        
         try {
             PackageInfo info = context.getPackageManager().getPackageInfo(packageName, 0);
             BugjarMonitor m = new BugjarMonitor(filesDir, apiKey,
-                    info.versionName, info.versionCode);
+                    info.versionName, info.versionCode, context.getResources()
+                            .getDisplayMetrics());
             
             Thread.setDefaultUncaughtExceptionHandler(m.exceptionHandler());
             m.submitStackTraces(context);
@@ -109,9 +124,8 @@ public class BugjarMonitor {
     {
         final DefaultHttpClient httpClient = new DefaultHttpClient();
         
-        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
-        final String widthPixels = String.valueOf(metrics.widthPixels);
-        final String heightPixels = String.valueOf(metrics.heightPixels);
+        final List<NameValuePair> values = trackingValues.getNameValuePairs();
+        final int valuesSize = values.size();
  
         Runnable submitter = new Runnable() {
 
@@ -119,25 +133,22 @@ public class BugjarMonitor {
             public void run() {
                 HttpPost request = new HttpPost(BJ_SERVER);
                 
-                request.addHeader("version", BM_VERSION);
-                request.addHeader("versionName", versionName);
-                request.addHeader("versionCode", versionCode);
-                request.addHeader("apiKey", apiKey);       
-                request.addHeader("widthPixels", widthPixels);
-                request.addHeader("heightPixels", heightPixels);
-                
                 try {
                     File d = new File(filesDir);
                     File[] stackTraces = d.listFiles(new ExceptionHandler.StackTraceFilter());
                     if (stackTraces != null && stackTraces.length > 0) {
                         for (int i = 0; i < stackTraces.length; i++) {
                             File f = stackTraces[i];
-                            
                             Log.d(TAG, "sending " + f.getAbsolutePath());
-                            request.setEntity(new InputStreamEntity(
-                                    new FileInputStream(f), f.length()));
+                            String trace = readStackTrace(f);
                             
+                            values.add("stackTrace", trace);
+                            
+                            request.setEntity(new UrlEncodedFormEntity(values));
                             HttpResponse response = httpClient.execute(request);
+                            
+                            values.remove(valuesSize);
+                            
                             if (response.getStatusLine().getStatusCode() == 200) {
                                 f.delete();
                             } else {
@@ -145,7 +156,8 @@ public class BugjarMonitor {
                             }
                         }
                     } else {
-                        // say hello
+                        // no stack traces to send; say hello!
+                        request.setEntity(new UrlEncodedFormEntity(values));
                         HttpResponse response = httpClient.execute(request);
                         Log.d(TAG, response.getStatusLine().toString());
                     }
@@ -157,5 +169,21 @@ public class BugjarMonitor {
         };
         
         new Thread(submitter).start();
+    }
+    
+    /**
+     * Read stack trace lines into a string
+     * @throws IOException 
+     */
+    private static String readStackTrace(File file) throws IOException
+    {
+        byte[] b = new byte[4096];
+        FileInputStream in = new FileInputStream(file);
+        int bytesRead = 0;
+        StringBuilder builder = new StringBuilder();
+        while ((bytesRead += in.read(b, bytesRead, 4096)) != -1) {
+            builder.append(new String(b));
+        }
+        return builder.toString();
     }
 }
