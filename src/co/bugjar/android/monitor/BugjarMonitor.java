@@ -19,8 +19,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
 
 import android.content.Context;
 import android.content.pm.PackageInfo;
@@ -51,6 +55,8 @@ public class BugjarMonitor {
     private final String versionName;
     private final String versionCode;
     
+    private final TrackingValues trackingValues;
+    
     /**
      * @param packageName the application package name
      * @param apiKey the Bugjar account API key
@@ -61,21 +67,9 @@ public class BugjarMonitor {
             int versionCode, DisplayMetrics displayMetrics) {
         
         this.filesDir = filesDir;
-        this.apiKey = apiKey;
-        this.versionName = versionName;
-        this.versionCode = String.valueOf(versionCode);
-        
-        trackingValues.put("monitorVersion", VERSION);
-        trackingValues.put("apiKey", apiKey);
-        
-        trackingValues.put("versionName", versionName);
-        trackingValues.put("versionCode", String.valueOf(versionCode));
-        trackingValues.put("apiKey", apiKey);
-        
-        trackingValues.put("widthPixels",
-                String.valueOf(displayMetrics.widthPixels));
-        
-        trackingValues.put("heightPixels",
+        this.trackingValues = new TrackingValues(apiKey, versionName,
+                String.valueOf(versionCode),
+                String.valueOf(displayMetrics.widthPixels),
                 String.valueOf(displayMetrics.heightPixels));
     }
     
@@ -84,7 +78,7 @@ public class BugjarMonitor {
      */
     private ExceptionHandler exceptionHandler()
     {
-        return new ExceptionHandler(filesDir, versionName, versionCode,
+        return new ExceptionHandler(filesDir, trackingValues,
                 Thread.getDefaultUncaughtExceptionHandler());
     }
     
@@ -124,9 +118,6 @@ public class BugjarMonitor {
     {
         final DefaultHttpClient httpClient = new DefaultHttpClient();
         
-        final List<NameValuePair> values = trackingValues.getNameValuePairs();
-        final int valuesSize = values.size();
- 
         Runnable submitter = new Runnable() {
 
             @Override
@@ -142,7 +133,7 @@ public class BugjarMonitor {
                             Log.d(TAG, "sending " + f.getAbsolutePath());
                             String trace = readStackTrace(f);
                             
-                            values.add("stackTrace", trace);
+                            values.add(new BasicNameValuePair("stackTrace", trace));
                             
                             request.setEntity(new UrlEncodedFormEntity(values));
                             HttpResponse response = httpClient.execute(request);

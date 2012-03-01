@@ -27,21 +27,18 @@ import android.util.Log;
  * Bugjar exception handler
  * 
  * @author Skyler Slade <jsslade@gmail.com>
- * @see http://www.bugjar.co
  */
 class ExceptionHandler implements UncaughtExceptionHandler {
 
     private final String filesPath;
-    private final String versionName;
-    private final String versionCode;
+    private final TrackingValues trackingValues;
     private final UncaughtExceptionHandler defaultUncaughtExceptionHandler;
 
-    ExceptionHandler(String filesPath, String versionName, String versionCode,
+    ExceptionHandler(String filesPath, TrackingValues trackingValues,
             UncaughtExceptionHandler defaultUncaughtExceptionhandler) {
         
         this.filesPath = filesPath;
-        this.versionName = versionName;
-        this.versionCode = versionCode;
+        this.trackingValues = trackingValues;
         this.defaultUncaughtExceptionHandler = defaultUncaughtExceptionhandler;
     }
 
@@ -60,18 +57,13 @@ class ExceptionHandler implements UncaughtExceptionHandler {
         if (!f.exists()) {
             f.mkdirs();
         }
-        StringBuilder context = new StringBuilder().append("version:")
-                .append(BugjarMonitor.BM_VERSION).append("\n")
-                .append("versionName:").append(versionName).append("\n")
-                .append("versionCode:").append(versionCode).append("\n")
-                .append("time:").append(time).append("\n").append("\r\n");
 
         Log.d(BugjarMonitor.TAG, "writing uncaught stack trace to " + filename);
         try {
             new File(filename).createNewFile();
             PrintWriter writer = new PrintWriter(filename);
             // write the context
-            writer.append(context.toString());
+            writer.append(trackingValues.toString());
             // write the stack trace
             e.printStackTrace(writer);
             writer.flush();
