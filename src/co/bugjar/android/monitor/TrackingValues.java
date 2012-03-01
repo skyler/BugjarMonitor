@@ -21,20 +21,23 @@ package co.bugjar.android.monitor;
  */
 class TrackingValues {
     
-    final String apiKey;
-    final String versionName;
-    final String versionCode;
-    final String widthPixels;
-    final String heightPixels;
+    private final String apiKey;
+    private final String versionName;
+    private final String versionCode;
+    private final String widthPixels;
+    private final String heightPixels;
+    private final String deviceIdentifier;
     
     TrackingValues(String apiKey, String versionName, String versionCode,
-            String widthPixels, String heightPixels) {
+            String widthPixels, String heightPixels, String deviceIdentifier)
+    {
         
         this.apiKey = apiKey;
         this.versionName = versionName;
         this.versionCode = versionCode;
         this.widthPixels = widthPixels;
         this.heightPixels = heightPixels;
+        this.deviceIdentifier = deviceIdentifier;
     }
     
     /**
@@ -45,11 +48,19 @@ class TrackingValues {
     @Override
     public synchronized String toString() {
         StringBuilder values = new StringBuilder()
-            .append("version:").append(BugjarMonitor.VERSION).append("\n")
+            .append("monitorVersion:").append(BugjarMonitor.VERSION).append("\n")
+            .append("apiKey:").append(apiKey).append("\n")
             .append("versionName:").append(versionName).append("\n")
             .append("versionCode:").append(versionCode).append("\n")
-            .append("time:").append(System.currentTimeMillis()).append("\n")
-            .append("\r\n");
+            .append("widthPixels:").append(widthPixels).append("\n")
+            .append("heightPixels:").append(heightPixels).append("\n")
+            .append("heightPixels:").append(heightPixels).append("\n")
+            .append("time:").append(System.currentTimeMillis()).append("\n");
+        
+        if (deviceIdentifier != null && !deviceIdentifier.contentEquals("")) {
+            values.append("deviceIdentifier").append(":").append(deviceIdentifier).append("\n");
+        }
+        values.append("\r\n");
         return values.toString();
     }
 }
