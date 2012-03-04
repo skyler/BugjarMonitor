@@ -43,7 +43,7 @@ public class BugjarMonitor {
     static final String VERSION = "2012-01-22";
     static final String TAG = BugjarMonitor.class.getSimpleName();
     
-    private static final String BJ_SERVER = "http://bugjar.git/server.php";
+    private static final String BJ_SERVER = "http://bugjar.git/monitor_client.php";
     private static final String STACK_TRACES_PATH = "/Bugjar/traces";
     
     private final String filesDir;
@@ -148,7 +148,7 @@ public class BugjarMonitor {
                         request.setEntity(new StringEntity(trackingValues.toString()));
                         
                         HttpResponse response = httpClient.execute(request);
-                        Log.d(TAG, "pining home, the Bugjar server responded "
+                        Log.d(TAG, "pinging home, the Bugjar server responded "
                                 + response.getStatusLine().toString());
                     }
                 } catch(IOException e) {
