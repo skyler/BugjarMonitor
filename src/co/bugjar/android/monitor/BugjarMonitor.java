@@ -14,15 +14,19 @@
  */
 package co.bugjar.android.monitor;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 
 import android.content.Context;
 import android.content.pm.PackageInfo;
@@ -39,11 +43,13 @@ import android.util.Log;
  * 
  * @author Skyler Slade <jsslade@gmail.com>
  */
-public class BugjarMonitor {
-    static final String VERSION = "2012-01-22";
+public class BugjarMonitor
+{
+    static final int VERSION = 20120122;
     static final String TAG = BugjarMonitor.class.getSimpleName();
     
     private static final String BJ_SERVER = "http://bugjar.git/monitor_client.php";
+    //private static final String BJ_SERVER = "http://www.google.com";
     private static final String STACK_TRACES_PATH = "/Bugjar/traces";
     
     private final String filesDir;
@@ -137,6 +143,7 @@ public class BugjarMonitor {
                             
                             if (response.getStatusLine().getStatusCode() == 200) {
                                 f.delete();
+                                readResponse(response);
                             } else {
                                 Log.w(TAG, "posting stack traces the Bugjar server responded "
                                         + response.getStatusLine().toString());
@@ -150,7 +157,10 @@ public class BugjarMonitor {
                         HttpResponse response = httpClient.execute(request);
                         Log.d(TAG, "pinging home, the Bugjar server responded "
                                 + response.getStatusLine().toString());
+                        
+                        readResponse(response);
                     }
+
                 } catch(IOException e) {
                     Log.e(TAG, e.getClass().getSimpleName() + " caught submitting stack trace: "
                             + e.getMessage());
@@ -159,6 +169,28 @@ public class BugjarMonitor {
         };
         
         new Thread(submitter).start();
+    }
+    
+    /**
+     * Read the response and log if there's a newer version of the monitor available
+     * @param response
+     */
+    private void readResponse(HttpResponse response)
+    {
+        try {
+            InputStream in = response.getEntity().getContent();
+            
+            byte[] buffer = new byte[4096];
+            int length = in.read(buffer);
+            int currentVersion = Integer.parseInt(new String(buffer, 0, length, "UTF-8"));
+            
+            if (currentVersion > VERSION) {
+                Log.w(TAG, "a newer version of the Bugjar jar is available--download it at http://www.getbugjar.com");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, e.getClass().getSimpleName()
+                    + " caught reading bugjar response: " + e.getMessage());
+        }
     }
     
 }

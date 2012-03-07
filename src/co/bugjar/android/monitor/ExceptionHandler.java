@@ -28,7 +28,8 @@ import android.util.Log;
  * 
  * @author Skyler Slade <jsslade@gmail.com>
  */
-class ExceptionHandler implements UncaughtExceptionHandler {
+class ExceptionHandler implements UncaughtExceptionHandler
+{
 
     private final String filesPath;
     private final TrackingValues trackingValues;
@@ -49,7 +50,8 @@ class ExceptionHandler implements UncaughtExceptionHandler {
      * @param e the exception
      */
     @Override
-    public void uncaughtException(final Thread thread, final Throwable e) {
+    public void uncaughtException(final Thread thread, final Throwable e)
+    {
         final long time = System.currentTimeMillis();
         final String filename = filesPath + "/" + time + ".stacktrace";
 
@@ -80,9 +82,11 @@ class ExceptionHandler implements UncaughtExceptionHandler {
     /**
      * Search for stack traces
      */
-    static class StackTraceFilter implements FilenameFilter {
+    static class StackTraceFilter implements FilenameFilter
+    {
         @Override
-        public boolean accept(File dir, String filename) {
+        public boolean accept(File dir, String filename)
+        {
             return filename.endsWith(".stacktrace");
         }
     }
