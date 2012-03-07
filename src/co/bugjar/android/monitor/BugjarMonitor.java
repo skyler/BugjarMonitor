@@ -14,19 +14,16 @@
  */
 package co.bugjar.android.monitor;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
 
 import android.content.Context;
 import android.content.pm.PackageInfo;
@@ -182,10 +179,14 @@ public class BugjarMonitor
             
             byte[] buffer = new byte[4096];
             int length = in.read(buffer);
-            int currentVersion = Integer.parseInt(new String(buffer, 0, length, "UTF-8"));
-            
-            if (currentVersion > VERSION) {
-                Log.w(TAG, "a newer version of the Bugjar jar is available--download it at http://www.getbugjar.com");
+            if (length > 0) {
+                Log.w(TAG, "length is " + length);
+                int currentVersion = Integer.parseInt(new String(buffer, 0,
+                        length, "UTF-8"));
+
+                if (currentVersion > VERSION) {
+                    Log.w(TAG, "a newer version of the Bugjar jar is available--download it at http://www.getbugjar.com");
+                }
             }
         } catch (Exception e) {
             Log.e(TAG, e.getClass().getSimpleName()
